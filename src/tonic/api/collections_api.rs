@@ -46,6 +46,16 @@ impl CollectionsService {
     {
         let timing = Instant::now();
         let access = extract_access(&mut request);
+        
+        // Check if instance is in read-only mode
+        let pass = new_unchecked_verification_pass();
+        if self.dispatcher.toc(&access, &pass).is_read_only() {
+            return Err(Status::new(
+                tonic::Code::PermissionDenied,
+                "Instance is running in read-only mode",
+            ));
+        }
+        
         let operation = request.into_inner();
         let wait_timeout = operation.wait_timeout();
         let result = self

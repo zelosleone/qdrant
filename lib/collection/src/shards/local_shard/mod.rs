@@ -617,6 +617,12 @@ impl LocalShard {
 
     /// Loads latest collection operations from WAL
     pub async fn load_from_wal(&self, collection_id: CollectionId) -> CollectionResult<()> {
+        // Skip WAL loading in read-only mode
+        if self.shared_storage_config.read_only {
+            log::info!("Skipping WAL loading for collection {} in read-only mode", collection_id);
+            return Ok(());
+        }
+
         let mut newest_clocks = self.wal.newest_clocks.lock().await;
         let wal = self.wal.wal.lock().await;
         let bar = ProgressBar::new(wal.len(false));

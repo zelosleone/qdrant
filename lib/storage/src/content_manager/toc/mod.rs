@@ -85,6 +85,8 @@ pub struct TableOfContent {
     collection_create_lock: Mutex<()>,
     /// Aggregation of all hardware measurements for each alias or collection config.
     collection_hw_metrics: DashMap<CollectionId, HwSharedDrain>,
+    /// Whether the instance is running in read-only mode
+    read_only: bool,
 }
 
 impl TableOfContent {
@@ -99,6 +101,7 @@ impl TableOfContent {
         channel_service: ChannelService,
         this_peer_id: PeerId,
         consensus_proposal_sender: Option<OperationSender>,
+        read_only: bool,
     ) -> Self {
         let collections_path = Path::new(&storage_config.storage_path).join(COLLECTIONS_DIR);
         create_dir_all(&collections_path).expect("Can't create Collections directory");
@@ -186,9 +189,13 @@ impl TableOfContent {
             }
         };
 
-        TableOfContent {
+        // Create a modified storage config with read_only flag
+        let mut storage_config_with_readonly = storage_config.clone();
+        storage_config_with_readonly.read_only = read_only;
+
+        let mut toc = TableOfContent {
             collections: Arc::new(RwLock::new(collections)),
-            storage_config: Arc::new(storage_config.clone()),
+            storage_config: Arc::new(storage_config_with_readonly),
             search_runtime,
             update_runtime,
             general_runtime,
@@ -203,7 +210,15 @@ impl TableOfContent {
             update_rate_limiter: rate_limiter,
             collection_create_lock: Default::default(),
             collection_hw_metrics: DashMap::new(),
+            read_only,
+        };
+
+        // Set write lock if in read-only mode
+        if read_only {
+            toc.set_locks(true, Some("Instance is running in read-only mode".to_string()));
         }
+
+        toc
     }
 
     /// Return `true` if service is working in distributed mode.

@@ -111,6 +111,9 @@ pub struct StorageConfig {
     /// Maximum number of collections to allow in the cluster.
     #[serde(default)]
     pub max_collections: Option<usize>,
+    /// Whether the instance is running in read-only mode.
+    #[serde(default)]
+    pub read_only: bool,
 }
 
 impl StorageConfig {
@@ -132,6 +135,7 @@ impl StorageConfig {
             self.snapshots_config.clone(),
             self.hnsw_global_config.clone(),
             common::defaults::search_thread_count(self.performance.max_search_threads),
+            self.read_only,
         )
     }
 }

@@ -44,6 +44,18 @@ impl PointsService {
         }
     }
 
+    fn check_read_only_mode(&self, access: &storage::rbac::Access) -> Result<(), Status> {
+        use collection::operations::verification::new_unchecked_verification_pass;
+        let pass = new_unchecked_verification_pass();
+        if self.dispatcher.toc(access, &pass).is_read_only() {
+            return Err(Status::new(
+                tonic::Code::PermissionDenied,
+                "Instance is running in read-only mode",
+            ));
+        }
+        Ok(())
+    }
+
     fn get_request_collection_hw_usage_counter(
         &self,
         collection_name: String,
@@ -67,6 +79,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
         let inference_token = extract_token(&request);
 
         let collection_name = request.get_ref().collection_name.clone();
@@ -92,6 +105,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
@@ -137,6 +151,7 @@ impl Points for PointsService {
         // Nothing to verify here.
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
         let inference_token = extract_token(&request);
 
         let collection_name = request.get_ref().collection_name.clone();
@@ -162,6 +177,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let hw_metrics = self.get_request_collection_hw_usage_counter(
             request.get_ref().collection_name.clone(),
@@ -186,6 +202,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
@@ -209,6 +226,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
@@ -232,6 +250,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
@@ -255,6 +274,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
@@ -278,6 +298,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
         let inference_token = extract_token(&request);
 
         let collection_name = request.get_ref().collection_name.clone();
@@ -302,6 +323,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
         let collection_name = request.get_ref().collection_name.clone();
         let wait = Some(request.get_ref().wait.unwrap_or(false));
         let hw_metrics = self.get_request_collection_hw_usage_counter(collection_name, wait);
@@ -324,6 +346,7 @@ impl Points for PointsService {
         validate(request.get_ref())?;
 
         let access = extract_access(&mut request);
+        self.check_read_only_mode(&access)?;
 
         delete_field_index(
             self.dispatcher.clone(),

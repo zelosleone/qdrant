@@ -22,6 +22,15 @@ use crate::common::strict_mode::*;
 use crate::common::update::*;
 use crate::settings::ServiceConfig;
 
+fn check_read_only_mode(dispatcher: &web::Data<Dispatcher>, access: &storage::rbac::Access) -> Result<(), actix_web::Error> {
+    use collection::operations::verification::new_unchecked_verification_pass;
+    let pass = new_unchecked_verification_pass();
+    if dispatcher.toc(access, &pass).is_read_only() {
+        return Err(actix_web::error::ErrorForbidden("Instance is running in read-only mode"));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize, Validate)]
 struct FieldPath {
     #[serde(rename = "field_name")]
@@ -38,6 +47,11 @@ async fn upsert_points(
     ActixAccess(access): ActixAccess,
     inference_token: InferenceToken,
 ) -> impl Responder {
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let operation = operation.into_inner();
 
     let request_hw_counter = get_request_hardware_counter(
@@ -82,6 +96,11 @@ async fn delete_points(
     service_config: web::Data<ServiceConfig>,
     ActixAccess(access): ActixAccess,
 ) -> impl Responder {
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let operation = operation.into_inner();
 
     let request_hw_counter = get_request_hardware_counter(
@@ -116,6 +135,11 @@ async fn update_vectors(
     ActixAccess(access): ActixAccess,
     inference_token: InferenceToken,
 ) -> impl Responder {
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let operation = operation.into_inner();
 
     let request_hw_counter = get_request_hardware_counter(

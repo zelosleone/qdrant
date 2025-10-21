@@ -135,6 +135,13 @@ struct Args {
     ///             It'll also compact consensus WAL to force snapshot
     #[arg(long, action, default_value_t = false)]
     reinit: bool,
+
+    /// Enable read-only mode.
+    /// In read-only mode, all write operations will be rejected with 403 Forbidden.
+    /// This mode skips WAL reading and assumes all changes are already applied to storage.
+    /// Distributed deployment cannot be read-only.
+    #[arg(long, action, default_value_t = false)]
+    read_only: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -150,6 +157,14 @@ fn main() -> anyhow::Result<()> {
     }
 
     let settings = Settings::new(args.config_path)?;
+
+    // Validate read-only mode constraints
+    if args.read_only && settings.cluster.enabled {
+        return Err(anyhow::anyhow!(
+            "Read-only mode is not compatible with distributed deployment. \
+             Please disable cluster mode or remove the --read-only flag."
+        ));
+    }
 
     // Set global feature flags, sourced from configuration
     init_feature_flags(settings.feature_flags);
@@ -371,6 +386,7 @@ fn main() -> anyhow::Result<()> {
         channel_service.clone(),
         persistent_consensus_state.this_peer_id(),
         propose_operation_sender.clone(),
+        args.read_only,
     );
 
     toc.clear_all_tmp_directories()?;

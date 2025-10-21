@@ -10,6 +10,10 @@ impl TableOfContent {
         self.is_write_locked.load(atomic::Ordering::Relaxed)
     }
 
+    pub fn is_read_only(&self) -> bool {
+        self.read_only
+    }
+
     pub fn get_lock_error_message(&self) -> Option<String> {
         self.lock_error_message.lock().clone()
     }
@@ -17,13 +21,15 @@ impl TableOfContent {
     /// Returns an error if the write lock is set
     pub fn check_write_lock(&self) -> Result<(), StorageError> {
         if self.is_write_locked.load(atomic::Ordering::Relaxed) {
-            return Err(StorageError::Locked {
-                description: self
-                    .lock_error_message
+            let error_message = if self.read_only {
+                "Instance is running in read-only mode".to_string()
+            } else {
+                self.lock_error_message
                     .lock()
                     .clone()
-                    .unwrap_or_else(|| DEFAULT_WRITE_LOCK_ERROR_MESSAGE.to_string()),
-            });
+                    .unwrap_or_else(|| DEFAULT_WRITE_LOCK_ERROR_MESSAGE.to_string())
+            };
+            return Err(StorageError::Forbidden { description: error_message });
         }
         Ok(())
     }

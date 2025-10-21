@@ -19,6 +19,14 @@ use crate::actix::auth::ActixAccess;
 use crate::actix::helpers::{self, process_response};
 use crate::common::collections::*;
 
+fn check_read_only_mode(dispatcher: &web::Data<Dispatcher>, access: &storage::rbac::Access) -> Result<(), actix_web::Error> {
+    let pass = new_unchecked_verification_pass();
+    if dispatcher.toc(access, &pass).is_read_only() {
+        return Err(actix_web::error::ErrorForbidden("Instance is running in read-only mode"));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct WaitTimeout {
     #[validate(range(min = 1))]
@@ -114,6 +122,12 @@ async fn create_collection(
     ActixAccess(access): ActixAccess,
 ) -> HttpResponse {
     let timing = Instant::now();
+    
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let create_collection_op =
         CreateCollectionOperation::new(collection.name.clone(), operation.into_inner());
 
@@ -140,6 +154,12 @@ async fn update_collection(
     ActixAccess(access): ActixAccess,
 ) -> impl Responder {
     let timing = Instant::now();
+    
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let name = collection.name.clone();
     let response = dispatcher
         .submit_collection_meta_op(
@@ -162,6 +182,12 @@ async fn delete_collection(
     ActixAccess(access): ActixAccess,
 ) -> impl Responder {
     let timing = Instant::now();
+    
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
+    
     let response = dispatcher
         .submit_collection_meta_op(
             CollectionMetaOperations::DeleteCollection(DeleteCollectionOperation(
@@ -182,6 +208,11 @@ async fn update_aliases(
     ActixAccess(access): ActixAccess,
 ) -> impl Responder {
     let timing = Instant::now();
+    
+    // Check if instance is in read-only mode
+    if let Err(err) = check_read_only_mode(&dispatcher, &access) {
+        return err.into();
+    }
     let response = dispatcher
         .submit_collection_meta_op(
             CollectionMetaOperations::ChangeAliases(operation.0),
